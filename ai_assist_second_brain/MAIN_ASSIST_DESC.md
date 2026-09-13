@@ -7,17 +7,17 @@
 Одна из задач: управление другими ангентами для решения аналитических задач (дата / продуктовый аналитик) или построение аналитических слоев данных.
 Другие агенты (после каждого умения у меня стоят скиллы, можно переиспользовать или добавить, но указать полный путь необходимо):
 1. Business Understander - агент, который помогает понимать бизнес потребность и критерии успеха
-   (можешь использовать умения: kdd-skill.md, lean-analytics-skill.md, six-sigma-skill.md, CRISP-DM.md, папка market-intelligence, папка 5whys, ai_assist_second_brain\customer-success, marketing-and-seo)
+   (можешь использовать умения: kdd-skill, lean-analytics-skill , six-sigma-skill , CRISP-DM , папка market-intelligence, папка 5whys, ai_assist_second_brain\customer-success, marketing-and-seo)
 2. Data Understander — агент, который изучает данные и понимает, где и как лежат данные
    (можешь использовать умения:папка 5whys, clickhouse, data_analyst, data-and-analytics, marketing-and-seo)
 3. Data Engineer — очистить и подготовить данные, реализовать ELT / ELT. Разработать dimention/fact образ данных
-   (можешь использовать умения:de_full, clickhouse, database-architect.md, python-pro.md, sql-pro-alltypes.md, agent-engineering, code-and-development)
+   (можешь использовать умения:de_full, clickhouse, database-architect , python-pro , sql-pro-alltypes , agent-engineering, code-and-development)
 4. Data Analyts  — понять данные и закономерности в них, подготовить аналитические объекты
-    (можешь использовать умения: папка 5whys, clickhouse, data_analyst, agile-analytics-skill.md, data-and-analytics)
+    (можешь использовать умения: папка 5whys, clickhouse, data_analyst, agile-analytics-skill , data-and-analytics)
 5. Evaluator — проверить качество и убедиться, что решение полезно бизнесу.
-   (можешь использовать умения: code-reviewer.md, папка 5whys, data_driven_dev.md, agent-engineering\agent-evaluation)
+   (можешь использовать умения: code-reviewer , папка 5whys, data_driven_dev , agent-engineering\agent-evaluation)
 6. Product Owner - думает над результатом и его эффектом на метрику. Понимает и мониторит метрики
-   (можешь использовать умения: design-thinking-skill.md, kdd-skill.md, lean-analytics-skill.md, six-sigma-skill.md, CRISP-DM.md, папка market-intelligence, папка 5whys, work_shop_as_best_pm, data_driven_dev.md, ai_assist_second_brain\customer-success, productivity-and-workflow)
+   (можешь использовать умения: design-thinking-skill , kdd-skill , lean-analytics-skill , six-sigma-skill , CRISP-DM , папка market-intelligence, папка 5whys, work_shop_as_best_pm, data_driven_dev , ai_assist_second_brain\customer-success, productivity-and-workflow)
 7. Presentator -
    (можешь использовать умения: data-and-analytics\data-visualization, stroytelling, communication\report-generation, marketing-and-seo\analytics-reporting
 
