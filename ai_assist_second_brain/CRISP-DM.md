@@ -1,64 +1,67 @@
 ---
 name: crisp-dm-pipeline
-description: Builds a production-grade ML pipeline following a staged CRISP-DM framework. Uses a modular 'src/' + independent notebook architecture. Employs staged interviews to minimize hallucinations and gather comprehensive context per phase. Outputs individual self-contained phase notebooks AND a comprehensive, runnable Master notebook with an executive summary.
+description: Создаёт ML-пайплайн промышленного уровня поэтапно в соответствии с фреймворком CRISP-DM. Использует модульную архитектуру «src/» + независимые ноутбуки. Применяет поэтапные интервью, чтобы минимизировать галлюцинации и собрать полный контекст по каждой фазе. На выходе формируются отдельные самодостаточные ноутбуки для каждой фазы, а также комплексный запускаемый Master-ноутбук с резюме для руководителей.
 ---
 
-# CRISP-DM Staged Machine Learning Pipeline
+# Поэтапный ML-пайплайн CRISP-DM
 
-This skill generates a complete, end-to-end ML pipeline grounded in the CRISP-DM framework (problem framing → data understanding → preparation → modeling → evaluation), and can optionally "operationalize" that pipeline into a repeatable training + inference workflow.
+Этот skill создаёт полный ML-пайплайн от начала до конца на основе фреймворка CRISP-DM: от формулировки задачи и понимания данных до подготовки, моделирования и оценки. При необходимости он также может «операционализировать» этот пайплайн, превратив его в повторяемый процесс обучения и инференса.
 
-## Key Design Principles
+## Ключевые принципы проектирования
 
-1. **Staged Interviews**: The process is NOT a single initial interview. We pause after each phase to conduct a targeted interview for the next phase. This gives the agent richer context and less room to hallucinate.
-2. **Modular Architecture**: All reusable logic (data loading, preprocessing, modeling, evaluation) lives in `src/`. Notebooks are thin interfaces that import from `src/`, ensuring consistency and independence.
-3. **Independent Notebooks**: Each phase notebook AND the Master notebook must be self-contained and runnable independently. They check for/load intermediate artifacts or regenerate them if missing.
-4. **Sign-off Gates**: Before proceeding to the next phase, the agent must present a "Phase Summary & Conclusion" for explicit user sign-off.
+1. **Поэтапные интервью.** Процесс НЕ ограничивается одним первоначальным интервью. После каждой фазы мы останавливаемся и проводим целевое интервью для следующей фазы. Это даёт агенту более богатый контекст и уменьшает пространство для галлюцинаций.
+2. **Модульная архитектура.** Вся повторно используемая логика — загрузка данных, предобработка, моделирование и оценка — находится в `src/`. Ноутбуки являются тонкими интерфейсами, импортирующими код из `src/`. Это обеспечивает единообразие и независимость.
+3. **Независимые ноутбуки.** Каждый ноутбук фазы и Master-ноутбук должны быть самодостаточными и запускаться независимо. Они проверяют наличие промежуточных артефактов, загружают их либо пересоздают при отсутствии.
+4. **Контрольные точки утверждения.** Перед переходом к следующей фазе агент должен представить «Резюме и выводы по фазе» и получить явное подтверждение пользователя.
 
 ---
 
-## Step 0: Initialize a Lab Tree (workspace for all outputs)
+## Шаг 0: Инициализация лабораторной структуры
 
-Before writing analysis/code artifacts, create a **lab workspace folder** in the repo so the project stays organized and repeatable.
+До создания артефактов анализа и кода создай в репозитории рабочую папку лаборатории, чтобы проект оставался организованным и воспроизводимым.
 
-### Lab tree rules
-- Put **all generated code, notebooks, and reports under the lab tree** (do not scatter files at repo root).
-- Do not modify existing application code outside the lab tree unless the user explicitly asks.
-- Use a short, filesystem-safe project slug derived from the user's goal, e.g. `churn_prediction`, `late_delivery`, `house_prices`.
+### Правила структуры лаборатории
 
-### Standard lab tree layout (create if missing)
+- Размещай весь сгенерированный код, ноутбуки и отчёты внутри лабораторной структуры; не разбрасывай файлы в корне репозитория.
+- Не изменяй существующий код приложения за пределами лабораторной структуры, если пользователь явно не попросил об этом.
+- Используй короткий slug проекта, безопасный для файловой системы и производный от цели пользователя, например: `churn_prediction`, `late_delivery`, `house_prices`.
 
-```
+### Стандартная структура лаборатории
+
+Создай её, если она отсутствует:
+
+```text
 lab/
   <project_slug>/
     README.md
-    requirements.txt              # or pyproject.toml if project uses it
+    requirements.txt              # или pyproject.toml, если проект его использует
     data/
-      raw/                        # immutable inputs (or links/notes)
-      interim/                    # intermediate transforms
-      processed/                  # modeling-ready tables
+      raw/                        # неизменяемые исходные данные или ссылки/заметки
+      interim/                    # промежуточные преобразования
+      processed/                  # таблицы, готовые для моделирования
     notebooks/
       01_business_understanding.ipynb
       02_data_understanding.ipynb
       03_data_preparation.ipynb
       04_modeling.ipynb
       05_evaluation.ipynb
-      master_crispdm_pipeline.ipynb   # Independent, stakeholder-ready
+      master_crispdm_pipeline.ipynb   # независимый ноутбук, готовый для стейкхолдеров
     src/
       __init__.py
-      config.py                   # paths, constants, random seeds
-      data_io.py                  # loading utilities
-      features.py                 # feature engineering (shared by train + infer)
-      metrics.py                  # metric helpers/baselines
-      modeling.py                 # model definitions / tuning helpers
-      evaluation.py               # evaluation plots/reports
-    jobs/                         # operationalization (optional)
+      config.py                   # пути, константы, random seeds
+      data_io.py                  # утилиты загрузки
+      features.py                 # генерация признаков, общая для обучения и инференса
+      metrics.py                  # вспомогательные функции метрик и baseline-моделей
+      modeling.py                 # определения моделей и утилиты настройки
+      evaluation.py               # графики и отчёты оценки
+    jobs/                         # операционализация, опционально
       etl_build_warehouse.py
       train_model.py
       run_inference.py
-      utils_db.py                 # if DB source/sink is used
+      utils_db.py                 # если используется источник или приёмник в БД
     artifacts/
-      models/                     # saved model pipelines (.sav)
-      runs/                       # per-run metadata/metrics
+      models/                     # сохранённые пайплайны моделей (.sav)
+      runs/                       # метаданные и метрики по каждому запуску
     reports/
       figures/
       tables/
@@ -66,554 +69,270 @@ lab/
     logs/
 ```
 
-If the user does not want operationalization, you can omit creating `jobs/` initially, but keep the lab tree structure so the work remains organized.
+Если пользователь не хочет операционализировать решение, создание папки `jobs/` можно первоначально пропустить. При этом общую структуру лаборатории следует сохранить, чтобы работа оставалась организованной.
 
 ---
 
-## Step 1: The Staged Interview Protocol
+## Шаг 1: Протокол поэтапных интервью
 
-**CRITICAL**: Do NOT ask all questions up front. Follow this staged approach. The agent gathers context progressively, which leads to better-informed questions and less hallucination.
+**КРИТИЧЕСКИ ВАЖНО:** НЕ задавай все вопросы сразу. Следуй поэтапному подходу. Агент должен постепенно собирать контекст, что приводит к более качественным вопросам и уменьшает галлюцинации.
 
-### Phase 0: Initial Intake (ask once, at the very beginning)
+### Фаза 0: Первичный сбор информации
 
-Extract what you can from the conversation context — only ask what's genuinely missing.
+Задай эти вопросы один раз в самом начале.
 
-**Minimum viable set:**
-1. **Goal & decision**: What decision will this model support, and who will use it?
-2. **Data source & access**:
-   - **Files**: path(s) (CSV/Excel/Parquet), or
-   - **Database**: engine (SQLite/Postgres/etc), file/connection info, and table(s), or
-   - **Multiple sources** that need joining/denormalizing?
-3. **Target definition**:
-   - Target column name (or how to construct the label)
-   - If classification: what is the **positive class** (the "important" class)?
-4. **Output choice**:
-   - **Operationalization** (repeatable train + infer workflow): **Yes/No**
-     - If Yes: where should predictions go? (file, database table, app integration point)
+Извлеки из контекста разговора всё, что возможно. Спрашивай только о действительно отсутствующей информации.
 
-### The Phase Loop (Repeat for Phases 1-5)
+**Минимальный необходимый набор:**
 
-For each CRISP-DM phase, follow this sequence:
-1. **Interview**: Conduct the phase-specific deep-dive interview (see Staged Probing Schedule below).
-2. **Implementation**: Generate/update the phase-specific notebook and relevant `src/` modules.
-3. **Verification**: Present the phase results to the user.
-4. **Sign-off**: Request explicit user sign-off on the phase conclusions before proceeding.
+1. **Цель и решение:** какое решение будет поддерживать модель и кто будет её использовать?
+2. **Источник и доступ к данным:**
+   - **Файлы:** пути к CSV/Excel/Parquet;
+   - **База данных:** движок — SQLite/Postgres и т. п., информация о файле или подключении, таблицы;
+   - **Несколько источников:** нужно ли их соединять или денормализовывать?
+3. **Определение target:**
+   - название целевого столбца или способ построения метки;
+   - если это классификация — какой класс является положительным, то есть наиболее важным?
+4. **Выбор результата:**
+   - **Операционализация**, то есть повторяемый процесс обучения и инференса: **Да/Нет**;
+   - если «Да»: куда должны записываться предсказания — файл, таблица в БД или точка интеграции с приложением?
 
-**Do not move to the next phase until the user has explicitly approved the current phase.**
+### Цикл фаз
 
-### Staged Probing Schedule
+Для каждой фазы CRISP-DM с 1 по 5 выполняй следующую последовательность:
 
-| After This Phase | Conduct This Interview (for the NEXT phase) |
+1. **Интервью:** проведи подробное интервью по конкретной фазе согласно расписанию ниже.
+2. **Реализация:** создай или обнови ноутбук текущей фазы и соответствующие модули в `src/`.
+3. **Проверка:** представь пользователю результаты фазы.
+4. **Подтверждение:** запроси явное подтверждение выводов по фазе перед переходом дальше.
+
+**Не переходи к следующей фазе, пока пользователь явно не одобрит текущие выводы.**
+
+### Расписание поэтапного уточнения
+
+| После этой фазы | Проведи интервью для следующей фазы |
 |---|---|
-| **Initial Intake** | Proceed to Phase 1 (Business Understanding) |
-| **Phase 1: Business** | **Stakeholders & approval chains**: Who are the stakeholders? Who needs to approve? **Automation scope**: What decisions will be automated vs. human-in-the-loop? **Business success**: What does "success" look like in business terms? (revenue, cost avoidance, etc.) **Failure history**: Are there known problem cases or examples of failures? |
-| **Phase 2: Data** | **Data dictionary & experts**: Do you have a data dictionary? Domain expert contacts? **Quality issues**: Are there known data quality issues? **Temporal scope**: What's the temporal scope of the data? **Seasonality/drift**: Are there seasonal patterns or known drift periods? |
-| **Phase 3: Prep** | **Outliers & errors**: Known outliers or erroneous values? **Feature hypotheses**: Feature engineering ideas or hypotheses? **Derived metrics**: Are there derived metrics already computed elsewhere? **Compliance/fairness**: Any compliance/fairness constraints on features? |
-| **Phase 4: Modeling** | **Interpretability vs. performance**: Preference for interpretable vs. higher-performance models? **Constraints**: Inference latency, model size, deployment environment? **Prior attempts**: Any prior attempts that failed and why? |
-| **Phase 5: Evaluation** | **Segment performance**: What segment performance matters most? **Model staleness**: What's the cost of model updates vs. stale models? **Monitoring**: How will model be monitored in production? |
+| **Первичный сбор информации** | Перейди к фазе 1 — понимание бизнеса |
+| **Фаза 1: Бизнес** | **Стейкхолдеры и цепочка согласований:** кто является стейкхолдерами и кому нужно утверждать решение? **Объём автоматизации:** какие решения будут автоматизированы, а где останется участие человека? **Бизнес-успех:** как будет выглядеть успех в бизнес-терминах — выручка, предотвращённые затраты и т. п.? **История ошибок:** известны ли проблемные случаи или примеры неудач? |
+| **Фаза 2: Данные** | **Словарь данных и эксперты:** есть ли словарь данных и контакты предметных экспертов? **Проблемы качества:** известны ли проблемы качества данных? **Временной охват:** какой период покрывают данные? **Сезонность и дрейф:** есть ли сезонные паттерны или периоды известного дрейфа? |
+| **Фаза 3: Подготовка** | **Выбросы и ошибки:** известны ли выбросы или ошибочные значения? **Гипотезы по признакам:** есть ли идеи или гипотезы для генерации признаков? **Производные метрики:** рассчитываются ли уже где-то производные метрики? **Соответствие требованиям и справедливость:** есть ли ограничения по compliance или fairness для признаков? |
+| **Фаза 4: Моделирование** | **Интерпретируемость и качество:** что важнее — интерпретируемость или более высокая точность? **Ограничения:** есть ли ограничения по latency инференса, размеру модели или среде развёртывания? **Предыдущие попытки:** предпринимались ли ранее попытки и почему они не сработали? |
+| **Фаза 5: Оценка** | **Качество по сегментам:** для каких сегментов качество наиболее важно? **Устаревание модели:** какова стоимость обновления модели по сравнению со стоимостью использования устаревшей модели? **Мониторинг:** как модель будет контролироваться в production? |
 
-### Decision rules (don't re-ask later)
-- If **problem type** is unclear, infer from target dtype/values and confirm in a single sentence.
-- If the user doesn't know a metric, choose a default based on error costs:
-  - **Classification**: prefer F1 / recall / ROC AUC depending on "misses vs false alarms"
-  - **Regression**: MAE or RMSE depending on sensitivity to large errors
+### Правила принятия решений
 
-### Anti-Hallucination Rule
-**If you do not have explicit user confirmation for a key design choice (e.g., success metric, feature set, model type), you MUST ask before proceeding.** Document the user's explicit answer in the notebook's "Phase Evidence & Assumptions" section. Never invent constraints or assumptions without flagging them for user review.
+- Если тип задачи неясен, определи его по типу и значениям target и подтверди выбор одним предложением.
+- Если пользователь не знает, какую метрику выбрать, выбери вариант по умолчанию исходя из стоимости ошибок:
+  - **Классификация:** предпочитай F1, recall или ROC AUC в зависимости от того, что важнее — пропуски или ложные тревоги.
+  - **Регрессия:** используй MAE или RMSE в зависимости от чувствительности к большим ошибкам.
+
+### Правило против галлюцинаций
+
+**Если у тебя нет явного подтверждения пользователя по ключевому проектному решению, например по целевой метрике, набору признаков или типу модели, ты ОБЯЗАН задать вопрос до продолжения.**
+
+Явный ответ пользователя нужно зафиксировать в разделе ноутбука «Подтверждённые сведения и допущения по фазе». Никогда не выдумывай ограничения или допущения без явной маркировки и возможности проверить их пользователем.
 
 ---
 
-## Problem Type Adaptation
+## Адаптация под тип задачи
 
-**CRITICAL**: Before generating any phase, determine the problem type and apply the correct adaptations below. Do NOT use the default templates blindly — modify each phase based on the data type, problem type, and data characteristics.
+**КРИТИЧЕСКИ ВАЖНО:** До генерации любой фазы определи тип задачи и примени соответствующие адаптации ниже. Не используй шаблоны вслепую — модифицируй каждую фазу с учётом типа данных, типа задачи и характеристик данных.
 
-### Problem Type Detection
-- **Binary Classification**: Target has exactly 2 classes
-- **Multi-class Classification**: Target has 3+ classes
-- **Regression**: Target is continuous numeric
-- **Time Series Forecasting**: Data has a temporal ordering and the target is a future value of a time-dependent variable
-- **Time Series Classification/Regression**: Tabular data with a time component where rows are ordered chronologically but the task is not pure forecasting
+### Определение типа задачи
 
-### Adaptation Matrix
+- **Бинарная классификация:** target содержит ровно 2 класса.
+- **Многоклассовая классификация:** target содержит 3 и более класса.
+- **Регрессия:** target — непрерывная числовая переменная.
+- **Прогнозирование временного ряда:** данные имеют временной порядок, а target — будущее значение зависящей от времени переменной.
+- **Классификация или регрессия на временных данных:** табличные данные с временной составляющей, где строки упорядочены хронологически, но задача не является чистым прогнозированием.
 
-| Dimension | Non-Time-Series | Time Series |
+### Матрица адаптаций
+
+| Измерение | Не временной ряд | Временной ряд |
 |---|---|---|
-| **Split Strategy** | `train_test_split` (random or stratified) | Chronological split (last N% as test) |
-| **Cross-Validation** | `StratifiedKFold` / `KFold` | `TimeSeriesSplit` or rolling window |
-| **Feature Engineering** | Domain features, interactions | Lag features, rolling stats, seasonal decompositions, date-time features |
-| **EDA** | Correlations, distributions | Autocorrelation (ACF/PACF), trend decomposition, seasonality plots |
-| **Leakage Prevention** | Standard column exclusion | No future data in features; respect temporal ordering |
-| **Baseline** | Majority class / mean prediction | Naive forecast (last value), seasonal naive, or rolling mean |
-| **Models** | LogisticRegression, RandomForest, XGBoost, etc. | ARIMA/SARIMAX, Prophet, LightGBM with lag features, TemporalFusionTransformer |
+| **Стратегия разбиения** | `train_test_split` — случайное или стратифицированное | Хронологическое разбиение: последние N% используются как тест |
+| **Кросс-валидация** | `StratifiedKFold` / `KFold` | `TimeSeriesSplit` или скользящее окно |
+| **Генерация признаков** | Предметные признаки и взаимодействия | Лаговые признаки, скользящие статистики, сезонная декомпозиция, признаки даты и времени |
+| **Разведочный анализ** | Корреляции и распределения | Автокорреляция, ACF/PACF, анализ тренда, графики сезонности |
+| **Предотвращение leakage** | Стандартное исключение столбцов | Никаких будущих данных в признаках; соблюдение временного порядка |
+| **Baseline** | Наиболее частый класс или среднее предсказание | Наивный прогноз — последнее значение, сезонный наивный прогноз или скользящее среднее |
+| **Модели** | LogisticRegression, RandomForest, XGBoost и т. п. | ARIMA/SARIMAX, Prophet, LightGBM с лаговыми признаками, TemporalFusionTransformer |
 
-### Imbalanced Data Handling
-When classification target class imbalance ratio exceeds 4:1:
-- **Phase 1**: Document the imbalance and its business implications. Ask about cost asymmetry.
-- **Phase 3**: Apply one or more of: `class_weight="balanced"` in models, SMOTE via `imblearn`, or threshold tuning.
-- **Phase 4**: Use `roc_auc`, `f1`, or `average_precision` as scoring — never `accuracy` alone.
-- **Phase 5**: Report per-class precision/recall, not just overall metrics. Include PR curve alongside ROC.
+### Работа с несбалансированными данными
 
-### Multi-class Classification Handling
-- **Phase 1**: Identify all classes and their business meaning. Ask which misclassifications are most costly.
-- **Phase 3**: Use `stratify=y` in split only if all classes have sufficient samples.
-- **Phase 4**: Use `StratifiedKFold`. Models: `RandomForestClassifier`, `XGBClassifier`, `LogisticRegression` (supports multi-class natively).
-- **Phase 5**: Use `classification_report` (shows per-class metrics). Include confusion matrix with normalized view.
+Когда соотношение классов в target превышает 4:1:
+
+- **Фаза 1:** зафиксируй дисбаланс и его бизнес-последствия. Уточни асимметрию стоимости ошибок.
+- **Фаза 3:** примени один или несколько подходов:
+  - `class_weight="balanced"` в моделях;
+  - SMOTE через `imblearn`;
+  - настройку порога классификации.
+- **Фаза 4:** используй в качестве scoring `roc_auc`, `f1` или `average_precision`; никогда не используй только `accuracy`.
+- **Фаза 5:** показывай precision и recall по каждому классу, а не только общие метрики. Добавляй PR-кривую вместе с ROC-кривой.
+
+### Многоклассовая классификация
+
+- **Фаза 1:** определи все классы и их бизнес-смысл. Уточни, какие ошибки классификации наиболее дороги.
+- **Фаза 3:** используй `stratify=y` при разбиении только в том случае, если для всех классов достаточно наблюдений.
+- **Фаза 4:** используй `StratifiedKFold`. Модели: `RandomForestClassifier`, `XGBClassifier`, `LogisticRegression`, которая поддерживает многоклассовый режим.
+- **Фаза 5:** используй `classification_report`, показывающий метрики по каждому классу. Добавь нормализованную confusion matrix.
 
 ---
 
-## Canonical Phase Templates (self-contained)
-
-Use these templates as the canonical structure. Adapt variable names, file paths, and model choices to the user's context.
-
-### Phase 1: Business Understanding
-**CRISP-DM Purpose:** define the business problem, objectives, and success criteria before touching data.
-
-**Deliverables:**
-- Problem statement and scope
-- Feasibility framing: practical impact, data availability, analytical feasibility
-- Success metric and baseline to beat
-- Error cost analysis and metric justification
-- Stakeholder impact assessment (revenue, cost avoidance, etc.)
-
-**Notebook markdown header template:**
-
-```markdown
-## Phase 1: Business Understanding
-**CRISP-DM Purpose:** Define the business problem, objectives, and success criteria before any data work begins.
-
-### Problem Statement
-- **Business Question:** ...
-- **Target Variable:** `...`
-- **Problem Type:** Classification / Regression
-- **Positive Class (if classification):** ...
-
-### Feasibility Assessment
-| Criterion | Assessment |
-|---|---|
-| Practical Impact | ... |
-| Data Availability | ... |
-| Analytical Feasibility | ... |
-
-### Success Criteria
-- **Primary metric:** ...
-- **Baseline to beat:** ...
-- **Minimum acceptable performance:** ...
-
-### Error Cost Analysis
-- **False Positive cost:** ...
-- **False Negative cost:** ...
-- **Implication for metric choice:** ...
-
-### Stakeholder Impact
-- **Expected business value:** ...
-- **Decisions to be automated:** ...
-- **Human-in-the-loop points:** ...
-```
-
-### Phase 2: Data Understanding
-**CRISP-DM Purpose:** become familiar with the data's structure, variables, quality, and relationships.
-
-**Deliverables:**
-- Data description report (shape, dtypes, sample rows)
-- Univariate statistics table
-- Missing value report
-- Target distribution
-- Data quality issues list (identified, not fixed yet)
-- Relationship exploration (correlations/plots)
-- Temporal scope and seasonality analysis
-
-**Canonical code pattern (non-time-series):**
-
-```python
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import warnings
-warnings.filterwarnings("ignore")
-
-# Load
-df = pd.read_csv("PATH_TO_DATA.csv")  # or database query result
-print(f"Shape: {df.shape[0]:,} rows × {df.shape[1]} columns")
-display(df.head()) if "display" in globals() else print(df.head())
-
-# Univariate stats + missingness
-desc = df.describe(include="all").T
-desc["missing"] = df.isnull().sum()
-desc["missing_pct"] = (df.isnull().mean() * 100).round(2)
-desc["nunique"] = df.nunique()
-print(desc[["count", "missing", "missing_pct", "nunique"]].head(30))
-
-# Target distribution + baseline
-TARGET = "YOUR_TARGET"
-if df[TARGET].dtype == "O" or df[TARGET].nunique() <= 20:
-    vc = df[TARGET].value_counts()
-    print(vc)
-    print(f"Baseline accuracy (majority class): {vc.max() / vc.sum():.1%}")
-else:
-    print(df[TARGET].describe())
-```
-
-**Canonical code pattern (time series EDA — add to or replace above when data is time-ordered):**
-
-```python
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from statsmodels.tsa.seasonal import seasonal_decompose
-import warnings
-warnings.filterwarnings("ignore")
-
-# Load and ensure datetime index
-df = pd.read_csv("PATH_TO_DATA.csv", parse_dates=["DATE_COLUMN"])
-df = df.sort_values("DATE_COLUMN").reset_index(drop=True)
-df.set_index("DATE_COLUMN", inplace=True)
-
-print(f"Shape: {df.shape[0]:,} rows × {df.shape[1]} columns")
-print(f"Date range: {df.index.min()} to {df.index.max()}")
-print(f"Frequency estimate: {pd.infer_freq(df.index)}")
-
-# Target time series plot
-TARGET = "YOUR_TARGET"
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-df[TARGET].plot(ax=axes[0, 0], title=f"{TARGET} over time")
-df[TARGET].resample("M").mean().plot(ax=axes[0, 1], title="Monthly trend")
-plot_acf(df[TARGET].dropna(), ax=axes[1, 0], title="Autocorrelation (ACF)")
-plot_pacf(df[TARGET].dropna(), ax=axes[1, 1], title="Partial Autocorrelation (PACF)")
-plt.tight_layout()
-plt.show()
-
-# Seasonal decomposition (adjust period for your data)
-decomp = seasonal_decompose(df[TARGET].dropna(), model="additive", period=7)  # or 12, 52, etc.
-decomp.plot()
-plt.show()
-
-# Rolling statistics
-df["rolling_mean_7"] = df[TARGET].rolling(window=7).mean()
-df["rolling_std_7"] = df[TARGET].rolling(window=7).std()
-print(df[[TARGET, "rolling_mean_7", "rolling_std_7"]].tail(20))
-```
-
-### Phase 3: Data Preparation
-**CRISP-DM Purpose:** transform raw data into modeling-ready form; fixes happen here.
-
-**Deliverables:**
-- Inclusion/exclusion report (dropped columns + reasons)
-- Cleaning decisions (imputation/outliers)
-- Feature engineering notes
-- Train/test split (frozen test set)
-- Leakage-safe preprocessing using `Pipeline` + `ColumnTransformer`
-- Compliance/fairness constraint documentation
-
-**Canonical rules:**
-- Freeze test set once; do all tuning/CV on train only.
-- No preprocessing fit on full dataset outside of a pipeline.
-- **For time series**: split chronologically, never randomly. No future data in features.
-
-**Canonical code pattern (non-time-series):**
-
-```python
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.impute import SimpleImputer
-
-SEED = 42
-TARGET = "YOUR_TARGET"
-EXCLUDE_COLS = []  # leakage IDs, timestamps, etc.
-
-df_clean = df.drop(columns=[c for c in EXCLUDE_COLS if c in df.columns])
-X = df_clean.drop(columns=[TARGET])
-y = df_clean[TARGET]
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=SEED, stratify=y if y.nunique() <= 20 else None
-)
-
-numeric_cols = X_train.select_dtypes(include=np.number).columns.tolist()
-categorical_cols = X_train.select_dtypes(exclude=np.number).columns.tolist()
-
-numeric_pipe = Pipeline([
-    ("impute", SimpleImputer(strategy="median")),
-    ("scale", StandardScaler()),
-])
-categorical_pipe = Pipeline([
-    ("impute", SimpleImputer(strategy="most_frequent")),
-    ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
-])
-
-preprocessor = ColumnTransformer(
-    [("num", numeric_pipe, numeric_cols), ("cat", categorical_pipe, categorical_cols)],
-    remainder="drop",
-)
-```
-
-**Canonical code pattern (time series — chronological split + lag features):**
-
-```python
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.impute import SimpleImputer
-
-SEED = 42
-TARGET = "YOUR_TARGET"
-DATE_COL = "YOUR_DATE_COLUMN"
-EXCLUDE_COLS = [DATE_COL]  # date column excluded from features
-
-# Sort chronologically
-df = df.sort_values(DATE_COL).reset_index(drop=True)
-
-# Create lag features BEFORE splitting
-LAGS = [1, 2, 3, 7, 14, 28]  # adjust to your domain
-for lag in LAGS:
-    df[f"{TARGET}_lag_{lag}"] = df[TARGET].shift(lag)
-
-# Rolling statistics
-df[f"{TARGET}_roll_mean_7"] = df[TARGET].rolling(window=7).mean()
-df[f"{TARGET}_roll_std_7"] = df[TARGET].rolling(window=7).std()
-
-# Date-time features
-df["day_of_week"] = df[DATE_COL].dt.dayofweek
-df["month"] = df[DATE_COL].dt.month
-df["quarter"] = df[DATE_COL].dt.quarter
-
-# Drop rows with NaN from lagging
-df = df.dropna().reset_index(drop=True)
-
-# Chronological split (last 20% as test)
-split_idx = int(len(df) * 0.8)
-df_train = df.iloc[:split_idx]
-df_test = df.iloc[split_idx:]
-
-X_train = df_train.drop(columns=[TARGET] + EXCLUDE_COLS)
-y_train = df_train[TARGET]
-X_test = df_test.drop(columns=[TARGET] + EXCLUDE_COLS)
-y_test = df_test[TARGET]
-
-numeric_cols = X_train.select_dtypes(include=np.number).columns.tolist()
-categorical_cols = X_train.select_dtypes(exclude=np.number).columns.tolist()
-
-numeric_pipe = Pipeline([
-    ("impute", SimpleImputer(strategy="median")),
-    ("scale", StandardScaler()),
-])
-categorical_pipe = Pipeline([
-    ("impute", SimpleImputer(strategy="most_frequent")),
-    ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
-])
-
-preprocessor = ColumnTransformer(
-    [("num", numeric_pipe, numeric_cols), ("cat", categorical_pipe, categorical_cols)],
-    remainder="drop",
-)
-```
-
-### Phase 4: Modeling
-**CRISP-DM Purpose:** train/compare candidate models using CV on training set only; tune without touching test.
-
-**Deliverables:**
-- Candidate techniques + assumptions
-- CV design specification (and rationale)
-- CV comparison table
-- Selected model + tuned parameters
-- Interpretability vs. performance trade-off documentation
-
-**Canonical patterns (non-time-series):**
-- Classification: `StratifiedKFold`, choose scoring aligned to Phase 1 costs.
-- Regression: `KFold`, use `neg_root_mean_squared_error` or `r2` as appropriate.
-- Imbalanced data: use `roc_auc`, `f1`, or `average_precision` scoring; apply `class_weight="balanced"` or SMOTE.
-- Multi-class: use `StratifiedKFold`; models support multi-class natively.
-
-```python
-from sklearn.model_selection import StratifiedKFold, KFold, cross_val_score, GridSearchCV
-from sklearn.pipeline import Pipeline
-
-# Pick based on problem type
-is_classification = (y_train.nunique() <= 20)
-CV = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED) if is_classification else KFold(n_splits=5, shuffle=True, random_state=SEED)
-SCORING = "roc_auc" if is_classification else "neg_root_mean_squared_error"
-
-# Example candidates (swap as needed)
-from sklearn.linear_model import LogisticRegression, Ridge
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-
-candidates = {}
-if is_classification:
-    candidates["LogReg"] = Pipeline([("prep", preprocessor), ("model", LogisticRegression(max_iter=2000, random_state=SEED))])
-    candidates["RF"] = Pipeline([("prep", preprocessor), ("model", RandomForestClassifier(n_estimators=300, random_state=SEED, n_jobs=-1))])
-else:
-    candidates["Ridge"] = Pipeline([("prep", preprocessor), ("model", Ridge(alpha=1.0))])
-    candidates["RF"] = Pipeline([("prep", preprocessor), ("model", RandomForestRegressor(n_estimators=300, random_state=SEED, n_jobs=-1))])
-
-for name, pipe in candidates.items():
-    scores = cross_val_score(pipe, X_train, y_train, cv=CV, scoring=SCORING, n_jobs=-1)
-    print(name, float(scores.mean()), float(scores.std()))
-
-# Optional tuning on best candidate
-# search = GridSearchCV(best_pipe, param_grid, cv=CV, scoring=SCORING, n_jobs=-1)
-# search.fit(X_train, y_train)
-# final_model = search.best_estimator_
-```
-
-**Canonical patterns (time series):**
-- Use `TimeSeriesSplit` for CV. Never shuffle.
-- Include gradient boosting models (XGBoost, LightGBM) as primary candidates — they handle lag features well.
-- For pure forecasting, also try statistical baselines (naive, seasonal naive).
-
-```python
-from sklearn.model_selection import TimeSeriesSplit, cross_val_score
-from sklearn.pipeline import Pipeline
-
-CV = TimeSeriesSplit(n_splits=5)
-SCORING = "neg_root_mean_squared_error"  # or "r2" for regression, "roc_auc" for classification
-
-# Time series candidates
-try:
-    import xgboost as xgb
-    from sklearn.linear_model import LinearRegression
-    candidates = {
-        "LinearReg": Pipeline([("prep", preprocessor), ("model", LinearRegression())]),
-        "XGBoost": Pipeline([("prep", preprocessor), ("model", xgb.XGBRegressor(n_estimators=300, random_state=SEED, n_jobs=-1))]),
-    }
-except ImportError:
-    from sklearn.ensemble import RandomForestRegressor
-    candidates = {
-        "RF": Pipeline([("prep", preprocessor), ("model", RandomForestRegressor(n_estimators=300, random_state=SEED, n_jobs=-1))]),
-    }
-
-for name, pipe in candidates.items():
-    scores = cross_val_score(pipe, X_train, y_train, cv=CV, scoring=SCORING, n_jobs=-1)
-    print(name, float(scores.mean()), float(scores.std()))
-
-# Naive baseline for comparison
-from sklearn.metrics import mean_absolute_error
-naive_pred = X_test[f"{TARGET}_lag_1"].values if f"{TARGET}_lag_1" in X_test.columns else np.full(len(y_test), float(y_train.iloc[-1]))
-print(f"Naive baseline MAE: {mean_absolute_error(y_test, naive_pred):.4f}")
-```
-
-### Phase 5: Evaluation
-**CRISP-DM Purpose:** evaluate against business objectives; compare to baseline; make go/no-go recommendation.
-
-**Deliverables:**
-- Final metrics vs baseline and success threshold
-- Confusion matrix + interpretation (classification) OR residual analysis (regression)
-- Feature importance / interpretability summary (as applicable)
-- Operational readiness review + decision
-- Executive summary (`reports/executive_summary.md`)
-- Production monitoring plan
-
-**Canonical code pattern (classification):**
-
-```python
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-
-final_model.fit(X_train, y_train)
-y_pred = final_model.predict(X_test)
-
-baseline = y_test.value_counts(normalize=True).max()
-acc = accuracy_score(y_test, y_pred)
-print(f"Baseline accuracy: {baseline:.4f}")
-print(f"Model accuracy:    {acc:.4f}")
-print(classification_report(y_test, y_pred))
-print(confusion_matrix(y_test, y_pred))
-```
-
-**Canonical code pattern (regression):**
-
-```python
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-
-final_model.fit(X_train, y_train)
-y_pred = final_model.predict(X_test)
-
-baseline_pred = np.full(shape=len(y_test), fill_value=float(y_train.mean()))
-baseline_rmse = mean_squared_error(y_test, baseline_pred, squared=False)
-rmse = mean_squared_error(y_test, y_pred, squared=False)
-mae = mean_absolute_error(y_test, y_pred)
-r2 = r2_score(y_test, y_pred)
-print(f"Baseline RMSE: {baseline_rmse:.4f} | Model RMSE: {rmse:.4f} | MAE: {mae:.4f} | R2: {r2:.4f}")
-```
-
-**Canonical code pattern (time series forecasting — add to or replace above):**
-
-```python
-from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
-
-final_model.fit(X_train, y_train)
-y_pred = final_model.predict(X_test)
-
-# Naive baseline (last known value)
-naive_pred = np.full(len(y_test), float(y_train.iloc[-1]))
-
-mape = mean_absolute_percentage_error(y_test, y_pred)
-naive_mape = mean_absolute_percentage_error(y_test, naive_pred)
-rmse = mean_squared_error(y_test, y_pred, squared=False)
-naive_rmse = mean_squared_error(y_test, naive_pred, squared=False)
-mae = mean_absolute_error(y_test, y_pred)
-
-print(f"Naive RMSE: {naive_rmse:.4f} | Model RMSE: {rmse:.4f}")
-print(f"Naive MAPE: {naive_mape:.4f} | Model MAPE: {mape:.4f}")
-print(f"Model MAE:  {mae:.4f}")
-
-# Residual plot over time
-residuals = y_test - y_pred
-fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-pd.Series(y_test.values, index=y_test.index if hasattr(y_test, 'index') else range(len(y_test))).plot(ax=axes[0], label="Actual")
-pd.Series(y_pred, index=y_test.index if hasattr(y_test, 'index') else range(len(y_test))).plot(ax=axes[0], label="Predicted")
-axes[0].legend()
-axes[0].set_title("Actual vs Predicted")
-pd.Series(residuals).plot(ax=axes[1])
-axes[1].axhline(0, color="red", linestyle="--")
-axes[1].set_title("Residuals over time")
-plt.tight_layout()
-plt.show()
-```
+## Канонические шаблоны фаз
+
+Используй эти шаблоны как стандартную структуру. Адаптируй названия переменных, пути и выбор моделей под контекст пользователя.
+
+### Фаза 1: Понимание бизнеса
+
+**Назначение CRISP-DM:** определить бизнес-проблему, цели и критерии успеха до начала работы с данными.
+
+**Результаты:**
+
+- формулировка проблемы и границы проекта;
+- оценка реализуемости: практическое влияние, доступность данных, аналитическая реализуемость;
+- целевая метрика и baseline, который нужно превзойти;
+- анализ стоимости ошибок и обоснование выбора метрики;
+- оценка влияния на стейкхолдеров — выручка, предотвращённые затраты и т. п.
+
+### Фаза 2: Понимание данных
+
+**Назначение CRISP-DM:** изучить структуру, переменные, качество и взаимосвязи в данных.
+
+**Результаты:**
+
+- отчёт с описанием данных: размер, типы данных, примеры строк;
+- таблица одномерной статистики;
+- отчёт по пропущенным значениям;
+- распределение target;
+- список проблем качества данных, выявленных, но пока не исправленных;
+- исследование взаимосвязей — корреляции и графики;
+- анализ временного охвата и сезонности.
+
+### Фаза 3: Подготовка данных
+
+**Назначение CRISP-DM:** преобразовать исходные данные в форму, готовую для моделирования; исправления выполняются на этой фазе.
+
+**Результаты:**
+
+- отчёт о включении и исключении данных: удалённые столбцы и причины;
+- решения по очистке: заполнение пропусков и обработка выбросов;
+- заметки по генерации признаков;
+- разбиение на train/test с зафиксированным тестовым набором;
+- предобработка без leakage с использованием `Pipeline` и `ColumnTransformer`;
+- документация ограничений по compliance и fairness.
+
+**Канонические правила:**
+
+- зафиксируй тестовый набор один раз; всю настройку и CV выполняй только на train;
+- не обучай предобработку на полном датасете за пределами pipeline;
+- **для временных рядов:** выполняй хронологическое, а не случайное разбиение. В признаках не должно быть будущих данных.
+
+### Фаза 4: Моделирование
+
+**Назначение CRISP-DM:** обучить и сравнить кандидатов на моделирование с помощью CV только на обучающей выборке; выполнить настройку, не затрагивая тестовые данные.
+
+**Результаты:**
+
+- список кандидатных методов и их допущений;
+- спецификация дизайна CV и его обоснование;
+- таблица сравнения моделей по CV;
+- выбранная модель и настроенные параметры;
+- документация компромисса между интерпретируемостью и качеством.
+
+### Фаза 5: Оценка
+
+**Назначение CRISP-DM:** оценить модель относительно бизнес-целей, сравнить с baseline и принять решение go/no-go.
+
+**Результаты:**
+
+- финальные метрики относительно baseline и порога успеха;
+- confusion matrix и её интерпретация для классификации либо анализ остатков для регрессии;
+- важность признаков и краткое резюме интерпретируемости, если применимо;
+- проверка операционной готовности и решение;
+- executive summary в файле `reports/executive_summary.md`;
+- план мониторинга в production.
 
 ---
 
-## Critical Rules (The "Why" Behind Them)
+## Критические правила
 
-**Never fit preprocessing on the full dataset before splitting.** Always put imputation, scaling, and encoding inside a `sklearn.Pipeline` with a `ColumnTransformer`. Fitting a scaler on the full dataset leaks validation statistics into training, producing optimistically biased performance estimates — a mistake that has burned real projects.
+### Почему нельзя обучать предобработку на полном датасете
 
-**Freeze the test set once, touch it once.** All cross-validation and hyperparameter tuning happens on `X_train` only. The test set is evaluated exactly once, at the very end, to report final performance. Using the test set for model selection is a form of overfitting.
+Никогда не обучай предобработку на полном датасете до его разбиения. Всегда помещай заполнение пропусков, масштабирование и кодирование внутрь `sklearn.Pipeline` с `ColumnTransformer`.
 
-**Always report a baseline.** For classification, compute the no-skill baseline (majority class rate). For regression, compute baseline RMSE using the mean prediction. For time series, compute naive forecast (last value) and seasonal naive baselines. A model that doesn't beat its baseline provides no real value — the textbook calls this out explicitly.
+Если масштабатор обучается на полном датасете, статистики валидационной выборки просачиваются в обучение. Это даёт чрезмерно оптимистичную оценку качества.
 
-**Use the right CV strategy for your data type.** `StratifiedKFold` for classification, `KFold` for regression, `TimeSeriesSplit` for time-ordered data. For time series, never shuffle — respect temporal ordering. For group-structured data (multiple rows per entity), use `GroupKFold` to avoid leakage.
+### Тестовый набор нужно зафиксировать и использовать один раз
 
-**For time series, never use future data in features.** Lag features, rolling windows, and date-time features must only reference past data. A feature using `shift(-1)` or a rolling window centered on the current row is leakage.
+Всю кросс-валидацию и настройку гиперпараметров выполняй только на `X_train`. Тестовую выборку нужно оценить ровно один раз — в самом конце, чтобы получить финальную оценку качества.
 
-**Handle imbalanced data explicitly.** When class ratio exceeds 4:1, use `class_weight="balanced"`, SMOTE, or threshold tuning. Report per-class metrics, not just accuracy. Use PR curves alongside ROC for imbalanced problems.
+Использование тестовой выборки для выбора модели является формой переобучения.
 
-**Document decisions, not just code.** Each phase should explain *why* a choice was made (e.g., "Used median imputation because this feature is right-skewed — mean would be pulled by outliers"). This is the difference between a notebook that teaches and one that just runs.
+### Всегда показывай baseline
+
+Для классификации рассчитывай baseline без навыков — долю наиболее частого класса.
+
+Для регрессии рассчитывай baseline RMSE при предсказании среднего.
+
+Для временных рядов рассчитывай наивный и сезонный наивный baseline.
+
+Модель, которая не превосходит baseline, не создаёт реальной ценности.
+
+### Используй правильную стратегию CV
+
+- `StratifiedKFold` — для классификации;
+- `KFold` — для регрессии;
+- `TimeSeriesSplit` — для упорядоченных по времени данных.
+
+Для временных рядов никогда не перемешивай данные — соблюдай временной порядок.
+
+Для данных с групповой структурой, например несколькими строками на одну сущность, используй `GroupKFold`, чтобы избежать leakage.
+
+### Для временных рядов не используй будущие данные
+
+Лаговые признаки, скользящие окна и признаки даты должны ссылаться только на прошлые данные.
+
+Признак с использованием `shift(-1)` или скользящего окна, центрированного относительно текущей строки, является leakage.
+
+### Явно обрабатывай дисбаланс классов
+
+Если соотношение классов превышает 4:1, используй `class_weight="balanced"`, SMOTE или настройку порога классификации.
+
+Показывай метрики по каждому классу, а не только accuracy. Для несбалансированных задач используй PR-кривые вместе с ROC-кривыми.
+
+### Документируй решения, а не только код
+
+Каждая фаза должна объяснять, **почему** было принято конкретное решение.
+
+Например: «Использовано заполнение медианой, поскольку признак имеет правостороннюю асимметрию, а среднее значение искажалось бы выбросами».
 
 ---
 
-## "Done-ness" Gates (do not stop early)
+## Контроль готовности
 
-Before considering the task complete, ensure the output includes:
-- **Phase 1**: explicit success metric + baseline + minimum acceptable threshold (even if proposed)
-- **Phase 2**: missingness report + target distribution + at least one relationship exploration; **for time series**: ACF/PACF plots, trend decomposition, seasonality analysis
-- **Phase 3**: frozen test set + leakage-safe preprocessing in a pipeline; **for time series**: chronological split, lag features, no future data leakage
-- **Phase 4**: CV comparison across at least 2 candidate models (or justified single-model choice); **for time series**: naive baseline comparison, `TimeSeriesSplit` CV
-- **Phase 5**: final test evaluation + baseline comparison + go/no-go recommendation; **for imbalanced data**: per-class metrics + PR curve; **for time series**: residual plot over time + naive forecast comparison
+Не считай задачу завершённой, пока результат не содержит:
 
-If operationalizing:
-- **Artifacts saved**: model pipeline file + metrics + metadata
-- **Training/inference separation**: distinct code paths with shared feature logic
-- **Prediction sink implemented**: file/db table/app integration location
+- **Фаза 1:** явно заданные целевая метрика, baseline и минимально приемлемый порог, даже если они пока предложены предварительно.
+- **Фаза 2:** отчёт по пропускам, распределение target и хотя бы одно исследование взаимосвязей; **для временных рядов:** графики ACF/PACF, декомпозиция тренда и анализ сезонности.
+- **Фаза 3:** зафиксированный тестовый набор и предобработка без leakage внутри pipeline; **для временных рядов:** хронологическое разбиение, лаговые признаки и отсутствие утечки будущих данных.
+- **Фаза 4:** сравнение CV как минимум двух кандидатных моделей либо обоснованный выбор одной модели; **для временных рядов:** сравнение с наивным baseline и CV через `TimeSeriesSplit`.
+- **Фаза 5:** финальная оценка на тесте, сравнение с baseline и рекомендация go/no-go; **для несбалансированных данных:** метрики по классам и PR-кривая; **для временных рядов:** график остатков во времени и сравнение с наивным прогнозом.
+
+Если выполняется операционализация:
+
+- **Артефакты сохранены:** файл пайплайна модели, метрики и метаданные.
+- **Обучение и инференс разделены:** отдельные участки кода используют общую логику генерации признаков.
+- **Приёмник предсказаний реализован:** предсказания сохраняются туда, откуда их может читать приложение — обычно в таблицу БД, связанную с идентификатором сущности.
 
 ---
 
-## Operationalization Checklist (apply when operationalizing)
+## Чек-лист операционализации
 
-When generating the operational job layout, ensure:
-- **Shared transformations**: feature engineering and preprocessing live in shared code; do not duplicate logic between training and inference.
-- **Artifacts are complete**: saved object includes preprocessing + model (prefer saving the full `sklearn.Pipeline`).
-- **Metadata exists**: training timestamp, data source snapshot description, feature list, label definition, code/config version (at minimum).
-- **Metrics are logged**: include baseline comparison and chosen success metric.
-- **Inference writes outputs**: predictions stored where the "app" can read them (often a DB table keyed by entity id).
+При создании структуры рабочих jobs убедись, что:
+
+- **Преобразования общие:** генерация признаков и предобработка находятся в общем коде; не дублируй логику между обучением и инференсом.
+- **Артефакты полные:** сохранённый объект содержит предобработку и модель; предпочтительно сохранять весь `sklearn.Pipeline`.
+- **Метаданные существуют:** как минимум время обучения, описание среза источника данных, список признаков, определение label, версия кода и конфигурации.
+- **Метрики логируются:** включается сравнение с baseline и выбранная целевая метрика.
+- **Инференс записывает результаты:** предсказания сохраняются туда, откуда их может прочитать приложение — часто это таблица БД, ключом которой является идентификатор сущности.
