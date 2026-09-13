@@ -1,0 +1,5 @@
+interface:
+  display_name: "Handoff"
+  short_description: "Сжать разговор в документ передачи"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Grilling"
+  short_description: "Проверять мышление на прочность по одному раунду вопросов за раз"

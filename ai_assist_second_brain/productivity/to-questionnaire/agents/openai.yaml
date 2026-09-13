@@ -1,0 +1,5 @@
+interface:
+  display_name: "To Questionnaire"
+  short_description: "Вынести вопросы в документ для кого-то, кто ответит"
+policy:
+  allow_implicit_invocation: false

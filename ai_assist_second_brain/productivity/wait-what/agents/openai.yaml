@@ -1,0 +1,5 @@
+interface:
+  display_name: "Wait What"
+  short_description: "Переформулируй: проще, с контекстом, которого мне не хватает"
+policy:
+  allow_implicit_invocation: false

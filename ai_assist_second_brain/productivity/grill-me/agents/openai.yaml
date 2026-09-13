@@ -1,0 +1,5 @@
+interface:
+  display_name: "Grill Me"
+  short_description: "Отточить план через интервью"
+policy:
+  allow_implicit_invocation: false
